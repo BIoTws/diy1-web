@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DIY1</title>
+    <style>
+        #qr {
+            text-align: center;
+        }
+
+        #qr > img {
+            display: inline !important;
+        }
+    </style>
+</head>
+<body>
+<div>
+    <div>
+        ID: <span id="id"></span>
+    </div>
+    <div>
+        Channel status: <span id="status">close</span>
+    </div>
+    <div>
+        Channel balance: <span id="balance"> - </span>
+    </div>
+    <div>
+        Purchased frames: <span id="frames">0/160</span>
+    </div>
+</div>
+<div id="qr">
+</div>
+<div style="text-align: center">
+    <img width="800" id="video" src="">
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="qrcode.min.js"></script>
+<script>
+	let sId = document.getElementById('id');
+	let sStatus = document.getElementById('status');
+	let sBalance = document.getElementById('balance');
+	let sFrame = document.getElementById('frames');
+
+	let id;
+
+	let socket = io.connect('http://localhost:9999');
+	socket.on('connect', () => {
+		id = socket.id;
+		sId.innerText = socket.id;
+
+		let text = JSON.stringify({
+			app: 'biot',
+			type: 'channel',
+			step: 'init',
+			pairingCode: 'A/55wrLAcIv77urxT16tjBQvctv9rz/YmR2OEPmoM8xz@byteball.org/bb-test#test',
+			myAmount: 1,
+			peerAmount: 161,
+			age: 10,
+			channelType: 'pft',
+			rate: 20,
+			count: 8,
+			interval: 15,
+			messageOnOpening: id
+		});
+
+
+		new QRCode(document.getElementById("qr"), {
+			text: text,
+			width: 200,
+			height: 200,
+			colorDark: "#000000",
+			colorLight: "#ffffff",
+			correctLevel: QRCode.CorrectLevel.H
+		});
+	});
+
+	socket.on('channel_opened', () => {
+		sStatus.innerText = 'open';
+		sBalance.innerText = '1/161';
+	});
+
+	socket.on('channel_transfer', (peerBalance, myBalance) => {
+		sBalance.innerText = peerBalance + '/' + myBalance;
+		frames += 20;
+		sFrame.innerText = frames + '/160';
+		play();
+	});
+
+	socket.on('channel_closed', () => {
+		sStatus.innerText = 'close';
+		sBalance.innerText = ' - ';
+	});
+
+	let n = 0;
+	let frames = 0;
+	let v = document.getElementById('video');
+	let t = null;
+
+	function play() {
+		let next = () => {
+			n++;
+			if (frames === 160) {
+				if (n > 160) {
+					n = 1;
+				}
+			} else {
+				if (n > frames && t) {
+					clearInterval(t);
+					t = null;
+					n--;
+					return;
+				}
+			}
+			let name = n.toString();
+			if (n < 10) name = '0' + name;
+			if (n < 100) name = '0' + name;
+			v.src = "imgs/sample%20" + name + ".jpg";
+		};
+
+		if (t === null) t = setInterval(next, 1000);
+	}
+</script>
+</body>
+</html>
